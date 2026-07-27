@@ -1,0 +1,89 @@
+﻿{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "dev",
+      "displayName": "Dev (Ninja, Debug, strict)",
+      "description": "Everyday build. Ninja is required for a reliable compile_commands.json.",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF"
+      }
+    },
+    {
+      "name": "lint",
+      "inherits": "dev",
+      "displayName": "Lint (Ninja, Debug, clang-tidy on)",
+      "description": "Slower build that runs clang-tidy on every translation unit.",
+      "binaryDir": "${sourceDir}/build/lint",
+      "cacheVariables": { "AUTOTASKS_ENABLE_CLANG_TIDY": "ON" }
+    },
+    {
+      "name": "asan",
+      "inherits": "dev",
+      "displayName": "ASan (Ninja, Debug, AddressSanitizer)",
+      "description": "Use when chasing a memory bug: use-after-free, overruns, leaks.",
+      "binaryDir": "${sourceDir}/build/asan",
+      "cacheVariables": { "AUTOTASKS_ENABLE_SANITIZERS": "ON" }
+    },
+    {
+      "name": "release",
+      "displayName": "Release (Ninja, optimised)",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "OFF"
+      }
+    },
+    {
+      "name": "vs",
+      "displayName": "Visual Studio (IDE solution)",
+      "description": "Fallback for working inside the VS IDE. Note: compile_commands.json is NOT produced by this generator, so clang-tidy integration is limited.",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "binaryDir": "${sourceDir}/build/vs",
+      "cacheVariables": { "AUTOTASKS_WARNINGS_AS_ERRORS": "ON" }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "lint",
+      "configurePreset": "lint"
+    },
+    {
+      "name": "asan",
+      "configurePreset": "asan"
+    },
+    {
+      "name": "release",
+      "configurePreset": "release"
+    },
+    {
+      "name": "format",
+      "configurePreset": "dev",
+      "targets": [ "format" ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": { "outputOnFailure": true }
+    }
+  ]
+}

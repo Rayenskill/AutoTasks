@@ -1,0 +1,115 @@
+﻿# AutoTasks — .gitignore
+# C++ / CMake / Qt / Visual Studio sous Windows, plus les données runtime du projet.
+
+# ---- Sortie de build ----------------------------------------------------
+build/
+out/
+cmake-build-*/          # CLion
+_deps/
+
+# ---- CMake --------------------------------------------------------------
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+CMakeUserPresets.json   # presets perso ; CMakePresets.json EST versionné
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json   # généré à chaque build ; ne pas versionner
+CTestTestfile.cmake
+Testing/
+
+# ---- Visual Studio ------------------------------------------------------
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.*
+*.suo
+*.user
+*.userosscache
+*.sdf
+*.opensdf
+*.VC.db
+*.VC.VC.opendb
+ipch/
+x64/
+x86/
+[Dd]ebug/
+[Rr]elease/
+
+# ---- Artefacts compilateur / linker ------------------------------------
+*.o
+*.obj
+*.lo
+*.slo
+*.gch
+*.pch
+*.ilk
+*.pdb
+*.idb
+*.exp
+*.map
+*.res
+*.tlog
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+*.exe
+*.out
+*.app
+
+# ---- Qt (fichiers générés : moc, uic, rcc) ------------------------------
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.moc
+*.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qm
+.qmake.cache
+.qmake.stash
+
+# ---- Éditeurs / outillage -----------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/c_cpp_properties.json
+.idea/
+.cache/                 # index clangd
+.clangd/
+*.swp
+*~
+
+# ---- Windows / déchets OS -----------------------------------------------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+# ---- Dépendances --------------------------------------------------------
+vcpkg_installed/
+third_party/*/          # si tu vendors des deps, dé-ignore celles à versionner
+
+# =========================================================================
+# Données runtime d'AutoTasks — la sortie de l'app. À NE JAMAIS versionner.
+# Ce sont tes scripts enregistrés, l'historique des runs, et des CAPTURES
+# D'ÉCRAN, qui peuvent contenir des données de paie, des identifiants ou des
+# informations client (contexte MCE).
+# =========================================================================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+data/
+screenshots/
+templates/
+runs/
+logs/
+*.log
+config.local.*
