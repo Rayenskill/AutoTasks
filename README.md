@@ -7,7 +7,7 @@
 ![Windows](https://img.shields.io/badge/platform-Windows%2010%2F11-0078D6)
 ![Status](https://img.shields.io/badge/status-early%20development-orange)
 
-> ⚠️ **Early development — Phase 0.** The toolchain and build configuration are in place; the engine itself is not implemented yet. See the [roadmap](#roadmap) for what exists and what doesn't.
+> ⚠️ **Early development.** The build is split into a reusable engine library, a CLI test bench, and a Qt shell — all three compile and run. What is *not* written yet is the engine itself: the real `Win32Engine` is a skeleton that reports every step as unimplemented. A simulated engine stands in for it so the UI can be built in parallel. See the [roadmap](#roadmap) for what exists and what doesn't.
 
 ---
 
@@ -72,27 +72,47 @@ Verify from a *Developer PowerShell for VS 2022*:
 cmake --version; ninja --version; clang-format --version; clang-tidy --version
 ```
 
-### Build & run
+Qt 6 is required **only** for the desktop app. The engine builds without it.
+
+### Build & run — engine only (no Qt needed)
 
 ```powershell
 git clone <your-repo-url> autotasks
 cd autotasks
 
-cmake --preset dev          # configure
-cmake --build --preset dev  # build
+cmake --preset engine
+cmake --build --preset engine
 
-.\build\dev\bin\autotasks_engine.exe
+.\build\engine\bin\autotasks_engine.exe --stub   # simulated engine
+.\build\engine\bin\autotasks_engine.exe          # real engine (skeleton)
 ```
+
+### Build & run — desktop app
+
+Copy `CMakeUserPresets.json.example` to `CMakeUserPresets.json` and set your Qt path in it — see [`docs/guides/QT_SETUP.md`](docs/guides/QT_SETUP.md). Then:
+
+```powershell
+cmake --preset dev-qt
+cmake --build --preset dev-qt
+
+.\build\dev\bin\autotasks_app.exe
+```
+
+All commands must be run from a **Developer PowerShell for VS**, otherwise the compiler is not on the PATH.
 
 ### Available presets
 
 | Preset | Purpose |
 |---|---|
-| `dev` | Everyday build — Ninja, Debug, warnings as errors |
-| `lint` | Same, plus clang-tidy on every translation unit (slower; run before committing) |
+| `engine` | **Engine only, no Qt.** The engine developer's everyday build |
+| `dev` | Everyday build — Ninja, Debug, warnings as errors, app included if Qt is found |
+| `dev-qt` | `dev` plus a machine-local Qt path — defined in your own `CMakeUserPresets.json` |
+| `lint` | Same as `dev`, plus clang-tidy on every translation unit (slower; run before committing) |
 | `asan` | AddressSanitizer build, for chasing memory bugs |
 | `release` | Optimized (`RelWithDebInfo`) |
 | `vs` | Visual Studio IDE solution — note: no `compile_commands.json`, so clang-tidy integration is limited |
+
+If Qt is not found, configuration still succeeds and only the engine targets are built — a collaborator without Qt can always clone and compile.
 
 ---
 
@@ -100,22 +120,36 @@ cmake --build --preset dev  # build
 
 ```
 autotasks/
-├── .clang-format .clang-tidy .editorconfig .gitignore
+├── .clang-format .clang-tidy .editorconfig .gitattributes .gitignore
 ├── CMakeLists.txt
 ├── CMakePresets.json
+├── CMakeUserPresets.json.example   Copy to CMakeUserPresets.json, set your Qt path
 ├── docs/                      Project documentation (see below)
-├── engine/                    Recording, replay, image matching
+├── engine/                    Recording, replay, image matching — no Qt, ever
 │   ├── include/engine/
+│   │   └── Engine.h           THE CONTRACT between the two halves
 │   └── src/
-│       └── win32/             All platform-specific code isolated here
-├── store/                     SQLite persistence layer
-│   ├── include/store/  src/  schema/
-├── app/                       Qt UI + orchestrator
-├── tests/                     GoogleTest
+│       ├── Win32Engine.cpp    The real engine (skeleton)
+│       ├── StubEngine.cpp     Simulated engine — lets the UI be built in parallel
+│       ├── main.cpp           CLI test bench
+│       └── win32/             All platform-specific code isolated here (Phase 1)
+├── store/                     SQLite persistence layer — Phase 4
+├── app/                       Qt UI + orchestrator — no Win32, ever
+│   ├── include/app/
+│   └── src/
+├── tests/                     GoogleTest — Phases 2-3
 └── build/                     Generated — gitignored
 ```
 
-The three top-level source folders mirror the architecture: the **engine** owns OS-level input and nothing else, the **store** is the single source of truth for scripts and run history, and the **app** schedules runs and renders the interface.
+### Build targets
+
+| Target | Kind | Owner |
+|---|---|---|
+| `autotasks_core` | Static library — the whole engine, no `main()` | engine dev |
+| `autotasks_engine` | CLI test bench, builds without Qt | engine dev |
+| `autotasks_app` | Qt desktop application | frontend dev |
+
+The engine is a **library**, not an executable. That is what lets the Qt app link against it, and what lets two developers work in parallel: the engine developer never installs Qt, the frontend developer never touches Win32. The one file they share is `engine/include/engine/Engine.h` — see [`docs/guides/TEAM_WORKFLOW.md`](docs/guides/TEAM_WORKFLOW.md).
 
 **The rule that holds it together:** the UI never synthesizes input. It commands the engine and reads the store. That's what lets live logs, run history, and the review queue all be drawn from one consistent record.
 
@@ -141,7 +175,7 @@ Code rules live in `.clang-format` (formatting), `.clang-tidy` (static analysis 
 cmake --preset dev -D AUTOTASKS_WARNINGS_AS_ERRORS=OFF
 ```
 
-See [`docs/TOOLING.md`](docs/TOOLING.md) for the full setup, gotchas, and the plan for tightening rules as the project grows.
+See [`docs/guides/TOOLING.md`](docs/guides/TOOLING.md) for the full setup, gotchas, and the plan for tightening rules as the project grows.
 
 ---
 
@@ -150,11 +184,12 @@ See [`docs/TOOLING.md`](docs/TOOLING.md) for the full setup, gotchas, and the pl
 | Phase | Milestone | Status |
 |---|---|---|
 | 0 | Toolchain, build config, repo skeleton | ✅ Done |
+| 0.5 | Engine split into a library, contract + simulated engine, Qt shell wired into the build | ✅ Done |
 | 1 | Minimal replay — hardcoded clicks via `SendInput` | ⬜ Not started |
 | 2 | Record → save → replay round trip (JSON) | ⬜ Not started |
 | 3 | Image matching + smart waits (OpenCV) | ⬜ Not started |
 | 4 | SQLite persistence and the real data model | ⬜ Not started |
-| 5 | Qt UI shell — library, run now | ⬜ Not started |
+| 5 | Qt UI shell — library, run now | 🟨 Shell and threading in place; views are placeholders |
 | 6 | Step editor and recorder entry point | ⬜ Not started |
 | 7 | Run history and logs | ⬜ Not started |
 | 8 | Scheduling, system tray, global hotkeys | ⬜ Not started |
@@ -185,13 +220,17 @@ AutoTasks stores everything locally — no accounts, no network calls. Note that
 
 ## Documentation
 
+Index: [`docs/README.md`](docs/README.md)
+
 | Document | What it covers |
 |---|---|
-| [`docs/Pitch.md`](docs/Pitch.md) | Why the project exists and what makes it different |
-| [`docs/SRS.md`](docs/SRS.md) | Full requirements specification — every feature, testable |
-| [`docs/Architecture_and_Roadmap.md`](docs/Architecture_and_Roadmap.md) | Component design, tech decisions, build order by difficulty |
-| [`docs/Learning_Path.md`](docs/Learning_Path.md) | Resources per technology, sequenced by phase |
-| [`docs/TOOLING.md`](docs/TOOLING.md) | Code rules, commands, and gotchas |
+| [`docs/guides/TEAM_WORKFLOW.md`](docs/guides/TEAM_WORKFLOW.md) | **Start here if there are two of you.** How the work splits, why the simulated engine exists, file ownership, Git |
+| [`docs/guides/QT_SETUP.md`](docs/guides/QT_SETUP.md) | Installing and configuring Qt, per machine |
+| [`docs/guides/TOOLING.md`](docs/guides/TOOLING.md) | Code rules, commands, and gotchas |
+| [`docs/planning/Pitch.md`](docs/planning/Pitch.md) | Why the project exists and what makes it different |
+| [`docs/planning/SRS.md`](docs/planning/SRS.md) | Full requirements specification — every feature, testable |
+| [`docs/planning/Architecture_and_Roadmap.md`](docs/planning/Architecture_and_Roadmap.md) | Component design, tech decisions, build order by difficulty |
+| [`docs/planning/Learning_Path.md`](docs/planning/Learning_Path.md) | Resources per technology, sequenced by phase |
 
 ---
 

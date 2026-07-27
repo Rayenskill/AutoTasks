@@ -1,0 +1,39 @@
+# AutoTasks — normalisation des fins de ligne.
+#
+# POURQUOI CE FICHIER : le depot contient aujourd'hui un melange de CRLF et de
+# LF. Sans regle commune, deux postes qui n'ont pas le meme `core.autocrlf`
+# produisent des diffs ou "tout le fichier a change" alors qu'une seule ligne
+# a bouge. A deux developpeurs, c'est la premiere source de conflits inutiles.
+#
+# `text=auto eol=lf` : LF dans le depot ET dans la copie de travail, quel que
+# soit le reglage git de chacun. MSVC, CMake, Ninja et Qt gerent tous le LF
+# sans probleme sous Windows.
+#
+# APPLICATION (une seule fois, a faire ensemble, sur un depot propre) :
+#     git add --renormalize .
+#     git commit -m "Normalise les fins de ligne en LF"
+# Ce commit ne touche que des espaces blancs. Le faire seul, sans autre
+# changement melange dedans.
+
+* text=auto eol=lf
+
+# ---- Exceptions : doivent rester en CRLF -------------------------------
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.sln  text eol=crlf
+
+# ---- Binaires : jamais de conversion -----------------------------------
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.pdf  binary
+*.zip  binary
+*.exe  binary
+*.dll  binary
+*.lib  binary
+*.pdb  binary
+*.db   binary
+*.sqlite binary
+*.sqlite3 binary

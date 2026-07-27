@@ -4,17 +4,21 @@
 # ---- Sortie de build ----------------------------------------------------
 build/
 out/
-cmake-build-*/          # CLion
+# CLion
+cmake-build-*/
 _deps/
 
 # ---- CMake --------------------------------------------------------------
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
-CMakeUserPresets.json   # presets perso ; CMakePresets.json EST versionné
+# Presets perso, propres à chaque machine (chemin de Qt).
+# CMakePresets.json et CMakeUserPresets.json.example SONT versionnés, lui non.
+CMakeUserPresets.json
 cmake_install.cmake
 install_manifest.txt
-compile_commands.json   # généré à chaque build ; ne pas versionner
+# Généré à chaque build ; ne pas versionner
+compile_commands.json
 CTestTestfile.cmake
 Testing/
 
@@ -79,7 +83,8 @@ ui_*.h
 !.vscode/extensions.json
 !.vscode/c_cpp_properties.json
 .idea/
-.cache/                 # index clangd
+# Index clangd
+.cache/
 .clangd/
 *.swp
 *~
@@ -93,7 +98,8 @@ $RECYCLE.BIN/
 
 # ---- Dépendances --------------------------------------------------------
 vcpkg_installed/
-third_party/*/          # si tu vendors des deps, dé-ignore celles à versionner
+# Si tu vendors des deps, dé-ignore celles à versionner
+third_party/*/
 
 # =========================================================================
 # Données runtime d'AutoTasks — la sortie de l'app. À NE JAMAIS versionner.

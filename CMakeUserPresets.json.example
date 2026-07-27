@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+
+  "vendor": {
+    "autotasks.dev/notes": {
+      "aQuoiCaSert": [
+        "COPIER ce fichier en 'CMakeUserPresets.json' (sans le .example) et ajuster",
+        "le chemin Qt selon TA machine. CMakeUserPresets.json est dans le .gitignore :",
+        "il ne doit jamais etre versionne, car le chemin d'installation de Qt differe",
+        "d'un poste a l'autre. C'est le mecanisme prevu par CMake exactement pour ca.",
+        "",
+        "Verifier le nom exact du dossier : la version (6.11.0) et le compilateur",
+        "(msvc2022_64) doivent correspondre a ce qui est installe. Ce doit etre une",
+        "build MSVC, PAS MinGW.",
+        "",
+        "Le developpeur moteur n'a PAS besoin de ce fichier : il utilise le preset",
+        "`engine`, qui ne cherche pas Qt du tout.",
+        "",
+        "ATTENTION : JSON n'a pas de commentaires, et CMake refuse tout champ",
+        "inconnu a la racine (`_comment` provoque une erreur de lecture). `vendor`",
+        "est le seul endroit prevu pour ce genre de texte libre."
+      ]
+    }
+  },
+
+  "configurePresets": [
+    {
+      "name": "dev-qt",
+      "inherits": "dev",
+      "displayName": "Dev + Qt (chemin local)",
+      "description": "Ajuster CMAKE_PREFIX_PATH au chemin d'installation de Qt sur CETTE machine.",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.0/msvc2022_64",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
+    },
+    {
+      "name": "release-qt",
+      "inherits": "release",
+      "displayName": "Release + Qt (chemin local)",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "C:/Qt/6.11.0/msvc2022_64",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
+    }
+  ],
+
+  "buildPresets": [
+    { "name": "dev-qt",     "configurePreset": "dev-qt" },
+    { "name": "release-qt", "configurePreset": "release-qt" }
+  ]
+}
