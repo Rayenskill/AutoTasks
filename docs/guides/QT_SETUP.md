@@ -179,52 +179,106 @@ C'est ce qui permet aux logs en direct, à l'historique et à la file de revue d
 
 Un rejeu dure plusieurs secondes ou minutes. Exécuté sur le thread principal, il fige la fenêtre : plus de rafraîchissement, plus de bouton d'arrêt, et Windows affiche « ne répond pas ».
 
-Le motif Qt est l'**objet worker déplacé dans un thread** :
+**C'est déjà réglé.** `ReplayController` (`app/include/app/ReplayController.h`) lance `Engine::replay()` sur un `QThread` et convertit le callback du moteur en signaux Qt, que Qt livre tout seul sur le thread UI.
+
+Il suffit de s'y connecter :
 
 ```cpp
-// Esquisse — à implémenter quand le moteur existera.
-class ReplayWorker : public QObject {
-    Q_OBJECT
-public slots:
-    void runScript(const QString& scriptId);   // travail long, hors thread UI
-signals:
-    void stepStarted(int index);
-    void stepFinished(int index, bool ok, double confidence);
-    void runFinished(bool success);
-};
+m_replay = new ReplayController(this);
+connect(m_replay, &ReplayController::runStarted,   this, &MaVue::onRunStarted);
+connect(m_replay, &ReplayController::stepReported, this, &MaVue::onStep);
+connect(m_replay, &ReplayController::runFinished,  this, &MaVue::onRunFinished);
 
-// Côté fenêtre :
-auto* thread = new QThread(this);
-auto* worker = new ReplayWorker;
-worker->moveToThread(thread);
-connect(worker, &ReplayWorker::stepFinished, this, &MainWindow::onStepFinished);
-thread->start();
+m_replay->start(/*useStub=*/true);
 ```
 
-Deux règles absolues : **ne jamais toucher un widget depuis un thread secondaire**, et faire circuler l'information uniquement par signaux — Qt gère le passage de thread automatiquement pour les connexions entre objets de threads différents.
+`app/src/LibraryPage.cpp` en est l'exemple complet et fonctionnel.
 
-C'est le point qui rendra la phase 5 réellement difficile, bien plus que la syntaxe des widgets.
+Deux règles absolues restent à respecter dans tout ce que vous ajouterez : **ne jamais toucher un widget depuis un thread secondaire**, et faire circuler l'information uniquement par signaux.
+
+Le moteur bouchon attend 400 ms par étape précisément pour rendre l'erreur visible : si la fenêtre se fige pendant un rejeu simulé, c'est que le travail a atterri sur le thread UI.
 
 ---
 
 ## 10. Ce qu'il reste à construire, vue par vue
 
-La coquille contient six pages vides. Chacune se remplit à sa phase :
+Les six vues sont **dessinées** : chacune a son formulaire dans `app/ui/`, sa classe dans `app/src/` et `app/include/app/`. Ce qui manque, ce sont les **données** — les modèles qui les remplissent.
 
-| Vue | Phase | Ce qu'il faudra |
+| Vue | Phase | Ce qu'il reste à brancher |
 |---|---|---|
-| Library | 5 | `QTableView` + `QSqlTableModel` sur la table `scripts`, recherche, bouton exécuter |
-| Editor | 6 | Liste réordonnable des étapes (`QListView` + modèle personnalisé, glisser-déposer) |
-| Recorder | 6 | Bouton démarrer/arrêter pilotant le moteur, nommage du script |
-| History | 7 | Historique filtrable, vue détaillée des événements, affichage des captures |
-| Schedules | 8 | Liste des déclencheurs, activation/désactivation, prochaine exécution, `QTimer` |
-| Review | 9 | File des étapes douteuses, comparaison attendu/observé, confirmer ou corriger |
+| Library | 5 | ✅ le rejeu marche (bouchon). Reste : `QTableView` + `QSqlTableModel` sur `scripts`, recherche via `QSortFilterProxyModel` |
+| Editor | 6 | Modèle sur `Script::steps` pour `stepsView`, glisser-déposer, chargement/écriture des champs du panneau |
+| Recorder | 6 | Appel au recorder du moteur, remplissage de `capturedView` au fil des actions |
+| History | 7 | Trois modèles liés : `runs` → `run_events` → capture d'écran |
+| Schedules | 8 | Modèle sur `schedules`, `QTimer` de déclenchement, calcul du prochain run |
+| Review | 9 | Modèle sur les étapes en confiance basse, `QPixmap` attendu/observé, actions de décision |
+
+Chaque `.cpp` contient un `TODO` à l'endroit exact où brancher le modèle.
 
 L'ordre compte : **Library d'abord**, car elle valide toute la chaîne UI → store → moteur sur le cas le plus simple.
 
 ---
 
-## 11. Dépannage
+## 11. Dessiner une vue dans Qt Designer
+
+**Toutes les vues sont dessinées, pas codées.** Pour changer l'apparence d'une page, on ouvre son `.ui` — jamais le C++.
+
+**Designer est installé mais sans intégration Visual Studio** — le lancer directement (faites-vous un raccourci) :
+
+```powershell
+C:\Qt\6.11.1\msvc2022_64\bin\designer.exe
+```
+
+### Modifier une vue existante
+
+Ouvrir le `.ui`, modifier, enregistrer, reconstruire. Rien d'autre à toucher — sauf si vous **ajoutez ou renommez** un widget, auquel cas le `.cpp` doit suivre.
+
+| Vue | Formulaire |
+|---|---|
+| Library | `app/ui/LibraryPage.ui` |
+| Editor | `app/ui/EditorPage.ui` |
+| Recorder | `app/ui/RecorderPage.ui` |
+| Schedules | `app/ui/SchedulesPage.ui` |
+| History | `app/ui/HistoryPage.ui` |
+| Review | `app/ui/ReviewPage.ui` |
+
+> ⚠️ **Après avoir modifié un `.ui`, si l'application ne change pas visiblement**, c'est que Ninja n'a pas recompilé les `.obj` qui dépendent du header régénéré. Forcer :
+> ```powershell
+> cmake --build --preset dev-qt --clean-first
+> ```
+
+### Ajouter une nouvelle vue
+
+Prendre `LibraryPage` comme patron — le trio `.ui` / `.h` / `.cpp` est là pour être recopié.
+
+1. **Designer → Widget** (pas *Main Window* : la page ira dans le `QStackedWidget`, une `QMainWindow` ne s'imbrique pas).
+2. Sélectionner le widget racine, `objectName = MaPage`. Nommer chaque widget utile (`confirmButton`, pas `pushButton_3`) : ces noms deviennent les accesseurs C++.
+3. Enregistrer sous `app/ui/MaPage.ui`.
+4. Ajouter les **trois** fichiers dans `qt_add_executable` du `CMakeLists.txt`.
+5. Écrire le `.h` et le `.cpp` sur le modèle de `LibraryPage`.
+6. `addPage(QStringLiteral("Ma page"), new MaPage(this));` dans `MainWindow::buildUi()`.
+7. `cmake --build --preset dev-qt`.
+
+Le header généré doit apparaître dans `build/dev/autotasks_app_autogen/include/ui_MaPage.h`.
+
+### Ce qui ne se met PAS dans un `.ui`
+
+- **Le contenu dynamique.** Le `.ui` contient un `QTableView` **vide** ; les lignes viennent d'un modèle à l'exécution. On ne dessine jamais « une ligne ».
+- **Les facteurs d'étirement d'un `QSplitter`** : `setStretchFactor()` n'existe pas dans le format `.ui`. Il est appelé dans le constructeur de chaque page.
+- **`MainWindow`** reste en code : elle n'assemble que la barre latérale et la pile.
+
+### Les quatre pièges
+
+| Piège | Symptôme | Pourquoi |
+|---|---|---|
+| Nom de fichier ≠ objectName | `Ui::MaPage` introuvable | Le **fichier** donne `ui_MaPage.h`, l'**objectName** donne la classe. Gardez-les identiques |
+| `.ui` hors de `app/ui/` | `ui_MaPage.h: No such file` | AUTOUIC cherche à côté du `.cpp` ; `AUTOUIC_SEARCH_PATHS` couvre `app/ui/` seulement |
+| `~MaPage() = default;` dans le `.h` | `invalid application of 'sizeof' to an incomplete type` | `unique_ptr<Ui::X>` exige le type complet pour détruire → destructeur dans le `.cpp` |
+| Slots auto-connectés `on_xxx_clicked()` | Le slot n'est jamais appelé, **sans erreur de compilation** | Designer connecte par nom, en silence. `connect()` explicite échoue à la compilation |
+
+---
+
+## 12. Dépannage
 
 | Symptôme | Cause | Correctif |
 |---|---|---|
@@ -233,7 +287,9 @@ L'ordre compte : **Library d'abord**, car elle valide toute la chaîne UI → st
 | `undefined reference to vtable` | moc n'a pas tourné | `qt_standard_project_setup()` présent ? Le `.h` avec `Q_OBJECT` est-il listé dans `qt_add_executable` ? |
 | `Qt6Widgets.dll introuvable` | DLL non déployées | `windeployqt` (étape 4) ou Qt `bin` dans le PATH |
 | `Could not find the Qt platform plugin "windows"` | Plugins manquants | `windeployqt` copie aussi les plugins — vérifier `platforms/qwindows.dll` à côté de l'exe |
-| Fenêtre figée pendant un rejeu | Travail long sur le thread UI | Section 9 |
+| Fenêtre figée pendant un rejeu | Travail long sur le thread UI | Section 9 — passer par `ReplayController` |
+| `ui_XXX.h: No such file or directory` | AUTOUIC n'a pas trouvé le `.ui` | Section 11 — nom du fichier, et `.ui` bien dans `app/ui/` |
+| Un `.ui` modifié ne change rien à l'écran | Dépendance mal suivie par Ninja | `cmake --build --preset dev-qt --clean-first` |
 | L'app ne se reconfigure pas dans VS | Cache périmé | Projet → Supprimer le cache et reconfigurer |
 
 ---

@@ -270,12 +270,36 @@ if(AUTOTASKS_BUILD_APP)
         # AUTOMOC est indispensable : sans lui, la macro Q_OBJECT de
         # MainWindow.h et ReplayController.h produit des erreurs de link
         # "unresolved external symbol ... staticMetaObject".
+        # Une vue = trois fichiers : le .cpp, le .h, et le .ui dessine dans
+        # Qt Designer. Pour ajouter une vue, copier ce trio.
         qt_add_executable(autotasks_app
             app/src/main.cpp
             app/src/MainWindow.cpp
             app/src/ReplayController.cpp
+            app/src/AppModel.cpp
+            app/src/LibraryPage.cpp
+            app/src/EditorPage.cpp
+            app/src/RecorderPage.cpp
+            app/src/SchedulesPage.cpp
+            app/src/HistoryPage.cpp
+            app/src/ReviewPage.cpp
+
             app/include/app/MainWindow.h
             app/include/app/ReplayController.h
+            app/include/app/AppModel.h
+            app/include/app/LibraryPage.h
+            app/include/app/EditorPage.h
+            app/include/app/RecorderPage.h
+            app/include/app/SchedulesPage.h
+            app/include/app/HistoryPage.h
+            app/include/app/ReviewPage.h
+
+            app/ui/LibraryPage.ui
+            app/ui/EditorPage.ui
+            app/ui/RecorderPage.ui
+            app/ui/SchedulesPage.ui
+            app/ui/HistoryPage.ui
+            app/ui/ReviewPage.ui
         )
 
         target_include_directories(autotasks_app PRIVATE app/include)
@@ -288,9 +312,17 @@ if(AUTOTASKS_BUILD_APP)
             autotasks_sanitizers    # retirer autotasks_warnings D'ICI seulement
         )
 
-        # OFF = la console reste visible (pratique pour qDebug en developpement).
-        # Passer a ON pour une vraie application GUI sans fenetre console.
-        set_target_properties(autotasks_app PROPERTIES WIN32_EXECUTABLE OFF)
+        # WIN32_EXECUTABLE OFF = la console reste visible (pratique pour qDebug
+        # en developpement). Passer a ON pour une vraie application GUI sans
+        # fenetre console.
+        #
+        # AUTOUIC_SEARCH_PATHS : AUTOUIC cherche le .ui dans le dossier du .cpp
+        # qui fait #include "ui_XXX.h". Nos .ui vivent dans app/ui/ et nos .cpp
+        # dans app/src/ — sans cette ligne, l'erreur est
+        # "ui_LibraryPage.h: No such file or directory".
+        set_target_properties(autotasks_app PROPERTIES
+            WIN32_EXECUTABLE OFF
+            AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/app/ui")
 
         autotasks_deploy_asan(autotasks_app)
 

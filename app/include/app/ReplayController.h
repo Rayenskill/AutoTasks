@@ -24,6 +24,8 @@
 // Change it freely — it lives in app/, it is yours. Just keep replay() off the
 // UI thread.
 
+#include "engine/Engine.h"
+
 #include <QObject>
 #include <QString>
 
@@ -32,8 +34,6 @@
 class QThread;
 
 namespace autotasks {
-
-class Engine;
 
 class ReplayController : public QObject {
     Q_OBJECT
@@ -47,11 +47,12 @@ public:
     ReplayController(ReplayController&&) = delete;
     ReplayController& operator=(ReplayController&&) = delete;
 
-    /// Starts a replay of the demo script. No-op if one is already running.
+    /// Starts a replay. No-op if one is already running.
     /// useStub selects the simulated engine instead of the real one.
     ///
-    /// TODO (Phase 4): take a Script instead, once the store can supply one.
-    void start(bool useStub);
+    /// The script is copied: the worker thread must not depend on anything the
+    /// caller might edit or destroy while the run is in flight.
+    void start(const Script& script, bool useStub);
 
     /// Asks the running replay to stop. Safe from the UI thread.
     void abort();

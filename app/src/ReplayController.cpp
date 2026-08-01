@@ -35,13 +35,12 @@ bool ReplayController::isRunning() const {
     return m_thread != nullptr;
 }
 
-void ReplayController::start(bool useStub) {
+void ReplayController::start(const Script& script, bool useStub) {
     if (m_thread != nullptr) {
         return;  // one replay at a time (SRS: FR-REP.5)
     }
 
     m_engine = useStub ? createStubEngine() : createEngine();
-    const Script script = makeDemoScript();
 
     emit runStarted(QString::fromStdString(m_engine->name()));
 

@@ -1,65 +1,40 @@
 #include "app/MainWindow.h"
 
+#include "app/AppModel.h"
+#include "app/EditorPage.h"
+#include "app/HistoryPage.h"
+#include "app/LibraryPage.h"
+#include "app/RecorderPage.h"
+#include "app/ReviewPage.h"
+#include "app/SchedulesPage.h"
+
 #include <QApplication>
-#include <QFont>
-#include <QLabel>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <QStatusBar>
-#include <QVBoxLayout>
-#include <QWidget>
-
-#include <array>
 
 namespace autotasks {
 
 namespace {
 
-struct NavigationEntry {
-    const char* label;
-    const char* description;
-    const char* phase;
-};
-
-// Mirrors the views listed in the SRS (section 4.1).
-constexpr std::array<NavigationEntry, 6> kNavigationEntries{{
-    {"Library",
-     "Every recorded script, searchable and taggable, with its last-run status "
-     "and a run-now button.",
-     "Phase 5"},
-    {"Editor",
-     "A script's steps as a reorderable list. Insert, delete, edit, or re-capture "
-     "a single step without re-recording the whole macro.",
-     "Phase 6"},
-    {"Recorder",
-     "Entry point for capturing a new script. Recording is performed by the "
-     "engine; this view only starts and stops it.",
-     "Phase 6"},
-    {"Schedules",
-     "Interval and cron triggers with next-run times. Only fires while the app "
-     "runs and the session is unlocked.",
-     "Phase 8"},
-    {"History",
-     "Run history filterable by script and status, drillable into the per-step "
-     "trace with failure screenshots.",
-     "Phase 7"},
-    {"Review",
-     "Steps the engine was not sure about. Confirm the action, or correct it and "
-     "re-capture the template on the spot.",
-     "Phase 9"},
-}};
+// Row order in the sidebar. Used by the cross-page navigation below.
+enum Page { Library = 0, Editor = 1, Recorder = 2, Schedules = 3, History = 4, Review = 5 };
 
 }  // namespace
 
 MainWindow::MainWindow(QWidget* parent) : QMainWindow(parent) {
+    // One data layer, shared by every page. Owned by the window, so it lives
+    // exactly as long as the UI does.
+    m_model = new AppModel(this);
+
     buildUi();
     buildMenus();
 
     setWindowTitle(QStringLiteral("AutoTasks"));
-    resize(1000, 640);
-    statusBar()->showMessage(QStringLiteral("Ready — engine not yet implemented (Phase 0)"));
+    resize(1100, 700);
+    statusBar()->showMessage(QStringLiteral("Ready"));
 }
 
 void MainWindow::buildUi() {
@@ -69,12 +44,26 @@ void MainWindow::buildUi() {
 
     m_pages = new QStackedWidget(this);
 
-    for (const auto& entry : kNavigationEntries) {
-        m_navigation->addItem(QString::fromUtf8(entry.label));
-        m_pages->addWidget(createPlaceholderPage(QString::fromUtf8(entry.label),
-                                                 QString::fromUtf8(entry.description),
-                                                 QString::fromUtf8(entry.phase)));
-    }
+    // Every page's layout lives in app/ui/<Name>.ui — open those in Qt Designer
+    // to change how a view looks. This window only assembles them.
+    auto* library = new LibraryPage(m_model, this);
+    m_editor = new EditorPage(m_model, this);
+    auto* recorder = new RecorderPage(m_model, this);
+    auto* schedules = new SchedulesPage(m_model, this);
+    auto* history = new HistoryPage(m_model, this);
+    auto* review = new ReviewPage(m_model, this);
+
+    addPage(QStringLiteral("Library"), library);
+    addPage(QStringLiteral("Editor"), m_editor);
+    addPage(QStringLiteral("Recorder"), recorder);
+    addPage(QStringLiteral("Schedules"), schedules);
+    addPage(QStringLiteral("History"), history);
+    addPage(QStringLiteral("Review"), review);
+
+    // Cross-page navigation goes through the window: a page never reaches into
+    // another one directly.
+    connect(review, &ReviewPage::openInEditor, this, &MainWindow::onOpenInEditor);
+    connect(recorder, &RecorderPage::openInEditor, this, &MainWindow::onOpenInEditor);
 
     auto* splitter = new QSplitter(Qt::Horizontal, this);
     splitter->addWidget(m_navigation);
@@ -85,7 +74,18 @@ void MainWindow::buildUi() {
     // Signals and slots: the navigation list drives the stacked pages.
     connect(m_navigation, &QListWidget::currentRowChanged, this, &MainWindow::onNavigationChanged);
 
-    m_navigation->setCurrentRow(0);
+    m_navigation->setCurrentRow(Page::Library);
+}
+
+void MainWindow::addPage(const QString& label, QWidget* page) {
+    m_navigation->addItem(label);
+    m_pages->addWidget(page);
+
+    // Pages that have something to say route it here rather than touching the
+    // status bar themselves. Pages without the signal simply do not connect.
+    if (page->metaObject()->indexOfSignal("statusMessage(QString)") >= 0) {
+        connect(page, SIGNAL(statusMessage(QString)), this, SLOT(onPageStatusMessage(QString)));
+    }
 }
 
 void MainWindow::buildMenus() {
@@ -100,39 +100,20 @@ void MainWindow::buildMenus() {
     });
 }
 
-QWidget* MainWindow::createPlaceholderPage(const QString& title, const QString& description,
-                                           const QString& phase) {
-    auto* page = new QWidget;
-    auto* layout = new QVBoxLayout(page);
-    layout->setContentsMargins(32, 32, 32, 32);
-    layout->setSpacing(12);
-
-    auto* titleLabel = new QLabel(title, page);
-    QFont titleFont = titleLabel->font();
-    titleFont.setPointSize(titleFont.pointSize() + 6);
-    titleFont.setBold(true);
-    titleLabel->setFont(titleFont);
-
-    auto* phaseLabel = new QLabel(QStringLiteral("Not implemented — %1").arg(phase), page);
-    phaseLabel->setStyleSheet(QStringLiteral("color: palette(mid);"));
-
-    auto* descriptionLabel = new QLabel(description, page);
-    descriptionLabel->setWordWrap(true);
-
-    layout->addWidget(titleLabel);
-    layout->addWidget(phaseLabel);
-    layout->addSpacing(8);
-    layout->addWidget(descriptionLabel);
-    layout->addStretch();
-
-    return page;
-}
-
 void MainWindow::onNavigationChanged(int index) {
     if (index < 0 || index >= m_pages->count()) {
         return;
     }
     m_pages->setCurrentIndex(index);
+}
+
+void MainWindow::onPageStatusMessage(const QString& text) {
+    statusBar()->showMessage(text, 5000);
+}
+
+void MainWindow::onOpenInEditor(const QString& scriptId, int stepIndex) {
+    m_navigation->setCurrentRow(Page::Editor);
+    m_editor->showStep(scriptId, stepIndex);
 }
 
 }  // namespace autotasks
