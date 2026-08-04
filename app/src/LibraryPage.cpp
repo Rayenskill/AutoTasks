@@ -4,6 +4,10 @@
 
 #include "ui_LibraryPage.h"
 
+// CHANGEMENT : QHeaderView etait deja utilise plus bas sans etre inclus ici.
+// Ca compilait par transitivite via ui_LibraryPage.h, ce qui casse des que le
+// .ui change.
+#include <QHeaderView>
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QSortFilterProxyModel>
@@ -51,6 +55,92 @@ LibraryPage::LibraryPage(AppModel* model, QWidget* parent)
 
     m_ui->scriptsTable->setModel(m_proxy);
     m_ui->scriptsTable->horizontalHeader()->setStretchLastSection(true);
+
+    // =====================================================================
+    // CHANGEMENTS — bande de selection uniforme sur toute la ligne.
+    //
+    // Aucune couleur n'est inventee : la seule couleur utilisee est lue dans
+    // la palette, c'est-a-dire la couleur d'accentuation de Windows.
+    // =====================================================================
+
+    // 1. Selection de la ligne entiere au lieu de la cellule cliquee.
+    //
+    // QTableView herite du defaut SelectItems de QAbstractItemView ; QTreeView
+    // (stepsView, page Editor) bascule seul sur SelectRows. C'est toute la
+    // difference de comportement entre les deux pages.
+    //
+    // Ce n'est pas que cosmetique : selectedScriptId() appelle selectedRows(),
+    // qui ne renvoie une ligne que si toutes ses colonnes sont selectionnees.
+    // En SelectItems, un clic utilisateur laissait la liste vide, donc les
+    // boutons Run et Delete restaient grises. Le bug etait masque par reload(),
+    // qui utilise selectRow() et selectionne bien la ligne complete.
+    m_ui->scriptsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
+
+    // 2. Une seule ligne a la fois : selectedScriptId() ne lit de toute facon
+    //    que selected.first().
+    m_ui->scriptsTable->setSelectionMode(QAbstractItemView::SingleSelection);
+
+    // 3. La grille. QTableView dessine un trait entre chaque cellule, ce qui
+    //    decoupait la bande de selection en cinq rectangles. QTreeView n'en a
+    //    pas, d'ou le rendu continu de stepsView.
+    m_ui->scriptsTable->setShowGrid(false);
+
+    // 4. La colonne de numeros a gauche. Le modele n'a pas d'en-tetes de
+    //    lignes, donc QTableView affichait 1, 2, 3... alors que Name est deja
+    //    la premiere colonne.
+    m_ui->scriptsTable->verticalHeader()->setVisible(false);
+
+    // 5. L'alternance de couleurs, activee dans le .ui. Elle survit sous la
+    //    selection et reintroduit une variation de teinte au milieu de la
+    //    bande.
+    m_ui->scriptsTable->setAlternatingRowColors(false);
+
+    // 6. Hauteur de ligne. QTableView est plus haut que QTreeView par defaut ;
+    //    on s'aligne sur stepsView.
+    m_ui->scriptsTable->verticalHeader()->setDefaultSectionSize(24);
+
+    // enlève le focus sur la table pour que la selection ne disparaisse pas quand on clique sur
+    // searchEdit ou un bouton. Le focus reste sur le bouton cliqué, ce qui est exactement le
+    // comportement de Windows.
+    m_ui->scriptsTable->setFocusPolicy(Qt::NoFocus);
+
+    // 7. Le remplissage continu.
+    //
+    //    Sans stylesheet, le style natif Windows peint la selection cellule par
+    //    cellule et laisse des ruptures aux jointures, meme sans grille. La
+    //    stylesheet force un remplissage uniforme sur toute la largeur.
+    //
+    //    Les quatre couleurs viennent de la palette, pas de valeurs en dur :
+    //    Active = vue au premier plan, Inactive = focus parti sur searchEdit ou
+    //    un bouton, cas frequent ici. C'est exactement ce que Windows aurait
+    //    peint, en un seul bloc.
+    m_ui->scriptsTable->setStyleSheet(
+        QStringLiteral("QTableView::item {"
+                       "    border: none;"
+                       "}"
+                       "QTableView::item:hover {"
+                       "    background: transparent;"
+                       "}"
+                       "QTableView::item:focus {"
+                       "    outline: none;"
+                       "    border: none;"
+                       "}"
+                       "QTableView::item:selected {"
+                       "    background: %1;"
+                       "    color: %2;"
+                       "}"
+                       "QTableView::item:selected:!active {"
+                       "    background: %3;"
+                       "    color: %4;"
+                       "}")
+            .arg(palette().color(QPalette::Active, QPalette::Highlight).name(),
+                 palette().color(QPalette::Active, QPalette::HighlightedText).name(),
+                 palette().color(QPalette::Inactive, QPalette::Highlight).name(),
+                 palette().color(QPalette::Inactive, QPalette::HighlightedText).name()));
+
+    // =====================================================================
+    // Fin des changements.
+    // =====================================================================
 
     connect(m_ui->searchEdit, &QLineEdit::textChanged, m_proxy,
             &QSortFilterProxyModel::setFilterFixedString);
