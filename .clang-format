@@ -1,0 +1,54 @@
+# AutoTasks — regles de formatage.  L'equivalent de Prettier.
+#
+# Applique par :   cmake --build --preset format
+# Ou sur un seul fichier :   clang-format -i --style=file <fichier>
+#
+# Ce fichier ne se discute pas au cas par cas : on lance l'outil, on ne
+# reformate pas a la main. Necessite clang-format 15 ou plus recent
+# (fourni par le composant "C++ Clang tools for Windows" de Visual Studio).
+---
+Language: Cpp
+BasedOnStyle: Google
+
+# ---- Largeur et indentation --------------------------------------------
+# 100 colonnes plutot que les 80 de Google : les noms Qt sont longs.
+ColumnLimit: 100
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+AccessModifierOffset: -4          # public: / private: alignes sur la classe
+
+# ---- Pointeurs et references -------------------------------------------
+# `QWidget* parent`, pas `QWidget *parent`. Colle au type, comme le reste
+# du code existant.
+PointerAlignment: Left
+ReferenceAlignment: Left
+DerivePointerAlignment: false     # ne PAS deduire du fichier : imposer
+
+# ---- Accolades et lignes courtes ---------------------------------------
+# Inline autorise `void abort() override { m_flag = true; }` dans une classe,
+# mais pas une fonction libre entiere sur une ligne.
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortCaseLabelsOnASingleLine: true
+InsertBraces: true                # `if (x) return;` -> `if (x) { return; }`
+
+# ---- Espaces de noms ----------------------------------------------------
+NamespaceIndentation: None        # pas d'indentation dans `namespace autotasks {`
+FixNamespaceComments: true        # ajoute `}  // namespace autotasks`
+CompactNamespaces: false
+
+# ---- Includes -----------------------------------------------------------
+# Preserve : les blocs separes par une ligne vide sont conserves tels quels.
+# C'est voulu — le code separe deja "mon header" / Qt / bibliotheque standard.
+# Le tri s'applique a l'interieur de chaque bloc seulement.
+IncludeBlocks: Preserve
+SortIncludes: CaseSensitive
+
+# ---- Divers -------------------------------------------------------------
+SeparateDefinitionBlocks: Always  # une ligne vide entre deux definitions
+EmptyLineBeforeAccessModifier: LogicalBlock
+AlwaysBreakTemplateDeclarations: Yes
+BreakConstructorInitializers: BeforeColon
+PackConstructorInitializers: NextLine

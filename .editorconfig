@@ -1,0 +1,33 @@
+# AutoTasks — reglages de base de l'editeur.
+# Reconnu nativement par Visual Studio, VS Code, CLion, Qt Creator, Vim...
+# Ne remplace pas clang-format : il regle ce que clang-format ne touche pas
+# (fins de ligne, encodage, fichiers non-C++).
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# clang-format est la reference pour le C++ ; ces valeurs ne servent qu'aux
+# editeurs qui ne le lancent pas automatiquement.
+[*.{cpp,hpp,h,cc,cxx}]
+indent_size = 4
+max_line_length = 100
+
+[{CMakeLists.txt,*.cmake}]
+indent_size = 4
+
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# En Markdown, deux espaces en fin de ligne = saut de ligne volontaire.
+[*.{md,markdown}]
+trim_trailing_whitespace = false
+
+# Les scripts batch Windows exigent des fins de ligne CRLF.
+[*.{bat,cmd}]
+end_of_line = crlf

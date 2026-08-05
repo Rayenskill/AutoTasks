@@ -1,0 +1,96 @@
+# AutoTasks — regles d'analyse statique.  L'equivalent d'ESLint.
+#
+# Applique par :   cmake --preset lint && cmake --build --preset lint
+# Ou sur un seul fichier :   clang-tidy engine/src/StubEngine.cpp -p build/dev
+#
+# Volontairement calibre pour ne pas noyer sous les avertissements au demarrage.
+# La liste se resserre au fur et a mesure : voir "A activer plus tard" en bas.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  clang-analyzer-*,
+  modernize-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  cppcoreguidelines-init-variables,
+  cppcoreguidelines-prefer-member-initializer,
+  cppcoreguidelines-pro-type-member-init,
+  cppcoreguidelines-slicing,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-virtual-class-destructor,
+  -bugprone-easily-swappable-parameters,
+  -modernize-use-trailing-return-type,
+  -readability-identifier-length,
+  -readability-magic-numbers,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+
+# Vide au demarrage : clang-tidy signale, il ne casse pas le build.
+# Le jour ou le code est propre, mettre 'bugprone-*,clang-analyzer-*' ici pour
+# que ces deux familles deviennent bloquantes.
+WarningsAsErrors: ''
+
+# N'analyser que NOS en-tetes. Sans ca, clang-tidy remonte dans les en-tetes de
+# Qt et de la bibliotheque standard et produit des milliers de lignes inutiles.
+HeaderFilterRegex: '.*[\\/](engine|app|store|tests)[\\/].*'
+
+CheckOptions:
+  # ---- Conventions de nommage — celles deja utilisees dans le code --------
+  - key:   readability-identifier-naming.NamespaceCase
+    value: lower_case                    # autotasks
+  - key:   readability-identifier-naming.ClassCase
+    value: CamelCase                     # MainWindow, StubEngine
+  - key:   readability-identifier-naming.StructCase
+    value: CamelCase                     # Step, StepResult
+  - key:   readability-identifier-naming.EnumCase
+    value: CamelCase                     # StepType
+  - key:   readability-identifier-naming.EnumConstantCase
+    value: CamelCase                     # StepType::WaitForImage
+  - key:   readability-identifier-naming.FunctionCase
+    value: camelBack                     # createStubEngine, buildUi
+  - key:   readability-identifier-naming.VariableCase
+    value: camelBack
+  - key:   readability-identifier-naming.ParameterCase
+    value: camelBack
+  - key:   readability-identifier-naming.PrivateMemberCase
+    value: camelBack
+  - key:   readability-identifier-naming.PrivateMemberPrefix
+    value: 'm_'                          # m_navigation, m_abortRequested
+  - key:   readability-identifier-naming.ProtectedMemberCase
+    value: camelBack
+  - key:   readability-identifier-naming.ProtectedMemberPrefix
+    value: 'm_'
+  - key:   readability-identifier-naming.PublicMemberCase
+    value: camelBack                     # Step::templatePath (agregats simples)
+  - key:   readability-identifier-naming.ConstexprVariableCase
+    value: CamelCase
+  - key:   readability-identifier-naming.ConstexprVariablePrefix
+    value: 'k'                           # kNavigationEntries
+  - key:   readability-identifier-naming.GlobalConstantCase
+    value: CamelCase
+  - key:   readability-identifier-naming.GlobalConstantPrefix
+    value: 'k'
+  - key:   readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  # ---- Ajustements ------------------------------------------------------
+  # Le code Qt fait `new QLabel(parent)` partout : c'est le systeme de
+  # parentage de Qt qui possede l'objet, pas une fuite.
+  - key:   cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: 'true'
+  - key:   modernize-use-default-member-init.UseAssignment
+    value: 'true'
+  - key:   readability-implicit-bool-conversion.AllowPointerConditions
+    value: 'true'
+
+# =========================================================================
+# A activer plus tard, quand la base de code sera plus mure :
+#
+#   cppcoreguidelines-*      (complet — tres bavard sur du code Qt)
+#   misc-*                   (utile, mais attendre d'avoir des tests)
+#   hicpp-*                  (doublon partiel des deux precedents)
+#
+# Ajouter une famille a la fois, corriger, commiter. Jamais tout d'un coup.
+# =========================================================================

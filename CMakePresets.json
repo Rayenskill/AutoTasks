@@ -1,84 +1,129 @@
-﻿{
+{
   "version": 3,
-  "cmakeMinimumRequired": {
-    "major": 3,
-    "minor": 21,
-    "patch": 0
-  },
+  "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+
   "configurePresets": [
     {
-      "name": "dev",
-      "displayName": "Dev (Ninja, Debug, strict)",
-      "description": "Everyday build. Ninja is required for a reliable compile_commands.json.",
+      "name": "base",
+      "hidden": true,
+      "description": "Socle commun. Toutes les options AUTOTASKS_* sont epinglees explicitement dans chaque preset concret : un preset ne doit JAMAIS dependre d'une valeur laissee dans le cache par une configuration precedente.",
       "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
+    },
+
+    {
+      "name": "dev",
+      "inherits": "base",
+      "displayName": "Dev (Ninja, Debug, strict)",
+      "description": "Build de tous les jours. Ninja est requis pour un compile_commands.json fiable.",
       "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
-        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF"
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "ON"
       }
     },
+
+    {
+      "name": "engine",
+      "inherits": "base",
+      "displayName": "Moteur seul (sans Qt)",
+      "description": "Pour le developpeur moteur : construit autotasks_core et le CLI autotasks_engine, sans aucune dependance a Qt. C'est le preset a utiliser si Qt n'est pas installe.",
+      "binaryDir": "${sourceDir}/build/engine",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "OFF"
+      }
+    },
+
     {
       "name": "lint",
-      "inherits": "dev",
-      "displayName": "Lint (Ninja, Debug, clang-tidy on)",
-      "description": "Slower build that runs clang-tidy on every translation unit.",
+      "inherits": "base",
+      "displayName": "Lint (Ninja, Debug, clang-tidy actif)",
+      "description": "Build plus lent qui passe clang-tidy sur chaque unite de compilation. A lancer avant de pousser.",
       "binaryDir": "${sourceDir}/build/lint",
-      "cacheVariables": { "AUTOTASKS_ENABLE_CLANG_TIDY": "ON" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "ON",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
     },
+
     {
       "name": "asan",
-      "inherits": "dev",
+      "inherits": "base",
       "displayName": "ASan (Ninja, Debug, AddressSanitizer)",
-      "description": "Use when chasing a memory bug: use-after-free, overruns, leaks.",
+      "description": "Chasse aux bugs memoire uniquement, environ 2x plus lent. Necessite le composant 'C++ AddressSanitizer' de l'installeur Visual Studio. Ne pas utiliser comme build par defaut.",
       "binaryDir": "${sourceDir}/build/asan",
-      "cacheVariables": { "AUTOTASKS_ENABLE_SANITIZERS": "ON" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "ON",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
     },
+
     {
       "name": "release",
-      "displayName": "Release (Ninja, optimised)",
-      "generator": "Ninja",
+      "inherits": "base",
+      "displayName": "Release (Ninja, optimise)",
       "binaryDir": "${sourceDir}/build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "AUTOTASKS_WARNINGS_AS_ERRORS": "OFF",
-        "AUTOTASKS_BUILD_TESTS": "OFF"
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "OFF",
+        "AUTOTASKS_BUILD_APP": "ON"
       }
     },
+
     {
       "name": "vs",
-      "displayName": "Visual Studio (IDE solution)",
-      "description": "Fallback for working inside the VS IDE. Note: compile_commands.json is NOT produced by this generator, so clang-tidy integration is limited.",
-      "generator": "Visual Studio 17 2022",
+      "displayName": "Visual Studio (solution IDE)",
+      "description": "Repli pour travailler dans l'IDE VS. Deux mises en garde : ce generateur ne produit pas de compile_commands.json (integration clang-tidy limitee), et le nom du generateur doit correspondre a la version de Visual Studio installee — 'Visual Studio 18 2026' ou 'Visual Studio 17 2022'. La liste exacte : cmake --help. En temps normal, ouvrir simplement le dossier dans VS suffit : il lit CMakePresets.json et utilise Ninja.",
+      "generator": "Visual Studio 18 2026",
       "architecture": "x64",
       "binaryDir": "${sourceDir}/build/vs",
-      "cacheVariables": { "AUTOTASKS_WARNINGS_AS_ERRORS": "ON" }
+      "cacheVariables": {
+        "AUTOTASKS_WARNINGS_AS_ERRORS": "ON",
+        "AUTOTASKS_ENABLE_CLANG_TIDY": "OFF",
+        "AUTOTASKS_ENABLE_SANITIZERS": "OFF",
+        "AUTOTASKS_BUILD_TESTS": "ON",
+        "AUTOTASKS_BUILD_APP": "ON"
+      }
     }
   ],
+
   "buildPresets": [
-    {
-      "name": "dev",
-      "configurePreset": "dev"
-    },
-    {
-      "name": "lint",
-      "configurePreset": "lint"
-    },
-    {
-      "name": "asan",
-      "configurePreset": "asan"
-    },
-    {
-      "name": "release",
-      "configurePreset": "release"
-    },
-    {
-      "name": "format",
-      "configurePreset": "dev",
-      "targets": [ "format" ]
-    }
+    { "name": "dev",     "configurePreset": "dev" },
+    { "name": "engine",  "configurePreset": "engine" },
+    { "name": "lint",    "configurePreset": "lint" },
+    { "name": "asan",    "configurePreset": "asan" },
+    { "name": "release", "configurePreset": "release" },
+    { "name": "vs",      "configurePreset": "vs" },
+    { "name": "format",  "configurePreset": "dev", "targets": [ "format" ] }
   ],
+
   "testPresets": [
     {
       "name": "dev",
